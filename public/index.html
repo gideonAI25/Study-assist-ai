@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyMind AI • Student Study Assistant</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Highlight.js for Code Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="logo-icon">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div class="brand-text">
+          <h1>StudyMind <span class="badge-ai">AI</span></h1>
+          <p class="tagline">Smart Study Guide & Tutoring Assistant</p>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <!-- Engine Status Badge -->
+        <button id="engineStatusBtn" class="status-pill" title="Click to configure AI keys">
+          <span class="status-dot"></span>
+          <span id="engineStatusText">Checking engine...</span>
+          <i class="fa-solid fa-sliders"></i>
+        </button>
+
+        <!-- History Drawer Button -->
+        <button id="historyToggleBtn" class="icon-btn" title="Saved Study Guides" aria-label="Study History">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span id="historyCountBadge" class="count-badge hidden">0</span>
+        </button>
+
+        <!-- Dark / Light Mode Toggle -->
+        <button id="themeToggleBtn" class="icon-btn" title="Toggle Theme" aria-label="Toggle Dark/Light Mode">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Wrapper -->
+  <main class="app-layout">
+
+    <!-- Hero / Welcome Banner -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <h2>What do you want to master today?</h2>
+        <p>Pick any subject, select your difficulty level, and receive a tailor-made study guide with interactive follow-up Q&amp;A.</p>
+      </div>
+    </section>
+
+    <!-- Generator Card / Input Panel -->
+    <section class="card generator-card">
+      <form id="studyForm" onsubmit="return false;">
+        
+        <!-- Step 1: Topic Input -->
+        <div class="form-group">
+          <label for="topicInput" class="form-label">
+            <span class="step-num">1</span>
+            <span>Enter Study Topic</span>
+          </label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-magnifying-glass input-icon"></i>
+            <input 
+              type="text" 
+              id="topicInput" 
+              placeholder="e.g. Binary Search Trees, Photosynthesis, French Revolution, Quantum Computing..." 
+              autocomplete="off" 
+              required
+            />
+            <button type="button" id="clearTopicBtn" class="clear-input-btn hidden" title="Clear input">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          
+          <!-- Quick Topic Inspiration Chips -->
+          <div class="topic-suggestions">
+            <span class="suggestions-label">Suggestions:</span>
+            <button type="button" class="chip" data-topic="Binary Search Trees" data-diff="Intermediate">🌳 Binary Search Trees</button>
+            <button type="button" class="chip" data-topic="Mitochondria & Cellular Respiration" data-diff="Beginner">⚡ Cellular Respiration</button>
+            <button type="button" class="chip" data-topic="Quantum Superposition" data-diff="Advanced">⚛️ Quantum Superposition</button>
+            <button type="button" class="chip" data-topic="Supply and Demand Economics" data-diff="Beginner">📈 Supply & Demand</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Difficulty Selection -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="step-num">2</span>
+            <span>Select Difficulty Level</span>
+          </label>
+          <div class="difficulty-grid" role="radiogroup" aria-label="Difficulty Level">
+            
+            <!-- Beginner Option -->
+            <label class="difficulty-card" data-level="Beginner">
+              <input type="radio" name="difficulty" value="Beginner" checked />
+              <div class="card-content">
+                <div class="diff-icon beginner-icon">
+                  <i class="fa-solid fa-seedling"></i>
+                </div>
+                <div class="diff-meta">
+                  <div class="diff-title">Beginner</div>
+                  <div class="diff-desc">Foundational concepts, plain language, and everyday analogies.</div>
+                </div>
+              </div>
+            </label>
+
+            <!-- Intermediate Option -->
+            <label class="difficulty-card" data-level="Intermediate">
+              <input type="radio" name="difficulty" value="Intermediate" />
+              <div class="card-content">
+                <div class="diff-icon intermediate-icon">
+                  <i class="fa-solid fa-compass"></i>
+                </div>
+                <div class="diff-meta">
+                  <div class="diff-title">Intermediate</div>
+                  <div class="diff-desc">Mechanism details, standard terminology, and practical workflows.</div>
+                </div>
+              </div>
+            </label>
+
+            <!-- Advanced Option -->
+            <label class="difficulty-card" data-level="Advanced">
+              <input type="radio" name="difficulty" value="Advanced" />
+              <div class="card-content">
+                <div class="diff-icon advanced-icon">
+                  <i class="fa-solid fa-brain"></i>
+                </div>
+                <div class="diff-meta">
+                  <div class="diff-title">Advanced</div>
+                  <div class="diff-desc">Rigorous theory, optimization trade-offs, and edge cases.</div>
+                </div>
+              </div>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Step 3: Submit Action -->
+        <div class="form-action">
+          <button type="submit" id="generateBtn" class="btn btn-primary btn-lg">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>Generate Study Guide</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Loading State Skeleton -->
+    <section id="loadingSection" class="card loading-card hidden">
+      <div class="loading-spinner-wrapper">
+        <div class="spinner"></div>
+      </div>
+      <h3 id="loadingTitle">Crafting your personalized study guide...</h3>
+      <p id="loadingSubtitle">Consulting AI curriculum models and synthesizing key takeaways.</p>
+      <div class="skeleton-lines">
+        <div class="skeleton-line full"></div>
+        <div class="skeleton-line medium"></div>
+        <div class="skeleton-line long"></div>
+        <div class="skeleton-line short"></div>
+      </div>
+    </section>
+
+    <!-- Generated Study Guide View -->
+    <section id="guideSection" class="card guide-card hidden">
+      <!-- Guide Header & Controls -->
+      <div class="guide-header">
+        <div class="guide-meta-left">
+          <span id="guideDiffBadge" class="badge-difficulty">Beginner</span>
+          <span id="guideEngineBadge" class="badge-engine">
+            <i class="fa-solid fa-bolt"></i> <span id="guideEngineText">AI Generated</span>
+          </span>
+          <h2 id="guideTopicTitle">Topic Title</h2>
+        </div>
+        
+        <div class="guide-actions">
+          <button id="copyGuideBtn" class="btn btn-outline btn-sm" title="Copy Markdown to Clipboard">
+            <i class="fa-regular fa-copy"></i>
+            <span>Copy</span>
+          </button>
+          <button id="downloadGuideBtn" class="btn btn-outline btn-sm" title="Download as Markdown">
+            <i class="fa-solid fa-arrow-down-to-bracket"></i>
+            <span>Download</span>
+          </button>
+          <button id="printGuideBtn" class="btn btn-outline btn-sm" title="Print Study Guide">
+            <i class="fa-solid fa-print"></i>
+            <span>Print</span>
+          </button>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Study Guide Body -->
+      <article id="guideContent" class="markdown-body">
+        <!-- Rendered markdown goes here -->
+      </article>
+
+      <hr class="divider" />
+
+      <!-- Follow-up Question Section -->
+      <section class="follow-up-container">
+        <div class="follow-up-header">
+          <div class="tutor-avatar">
+            <i class="fa-solid fa-user-graduate"></i>
+          </div>
+          <div class="tutor-header-text">
+            <h3>Have a follow-up question?</h3>
+            <p>Ask your AI tutor anything about <strong id="followUpTopicName">this topic</strong> to clarify doubts or explore further.</p>
+          </div>
+        </div>
+
+        <!-- Follow-up Prompt Suggestions -->
+        <div class="quick-prompts">
+          <span class="quick-label">Try asking:</span>
+          <button type="button" class="quick-prompt-btn" data-prompt="Can you explain this with another simple analogy?">
+            💡 Another analogy
+          </button>
+          <button type="button" class="quick-prompt-btn" data-prompt="What is the most common mistake students make here?">
+            ⚠️ Common mistakes
+          </button>
+          <button type="button" class="quick-prompt-btn" data-prompt="Give me a practice problem to test my understanding!">
+            📝 Practice problem
+          </button>
+        </div>
+
+        <!-- Q&A Conversation Thread -->
+        <div id="followUpThread" class="follow-up-thread hidden">
+          <!-- Dynamically added messages -->
+        </div>
+
+        <!-- Follow-up Input Form -->
+        <form id="followUpForm" class="follow-up-form" onsubmit="return false;">
+          <div class="follow-up-input-wrapper">
+            <textarea 
+              id="followUpInput" 
+              rows="1" 
+              placeholder="Ask a follow-up question about this study guide... (Press Enter to ask)"
+              required
+            ></textarea>
+            <button type="submit" id="followUpBtn" class="btn btn-primary btn-icon" title="Send question">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </form>
+      </section>
+
+    </section>
+
+  </main>
+
+  <!-- History Drawer (Sidebar) -->
+  <aside id="historyDrawer" class="drawer">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <h3>Study History</h3>
+      </div>
+      <button id="closeHistoryBtn" class="icon-btn" title="Close History">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="drawer-content">
+      <div id="historyList" class="history-list">
+        <!-- Dynamic list of saved guides -->
+      </div>
+      <div id="emptyHistoryMsg" class="empty-state">
+        <i class="fa-regular fa-folder-open"></i>
+        <p>No study guides saved yet.<br>Generate one to build your history!</p>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button id="clearAllHistoryBtn" class="btn btn-danger-outline btn-block">
+        <i class="fa-regular fa-trash-can"></i> Clear All History
+      </button>
+    </div>
+  </aside>
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+
+  <!-- Settings / API Key Modal -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-sliders"></i>
+          <h3>AI Engine &amp; API Settings</h3>
+        </div>
+        <button id="closeSettingsBtn" class="icon-btn" title="Close Settings">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          StudyMind AI is pre-configured with a <strong>Smart Built-in Educational Engine</strong> that works right out of the box without any setup.
+          You can optionally provide your own API key for live generative AI models.
+        </p>
+
+        <!-- Current Active Status -->
+        <div class="status-box">
+          <span class="status-label">Active Provider:</span>
+          <span id="modalActiveProvider" class="status-val">Offline Smart Engine</span>
+        </div>
+
+        <!-- Google Gemini Option -->
+        <div class="form-group">
+          <label for="geminiKeyInput" class="form-label">
+            <i class="fa-brands fa-google text-primary"></i> Google Gemini API Key (Recommended)
+          </label>
+          <input 
+            type="password" 
+            id="geminiKeyInput" 
+            class="form-control" 
+            placeholder="AIzaSy..." 
+          />
+          <small class="form-hint">
+            Free keys available at <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a>. Stored locally in your browser session.
+          </small>
+        </div>
+
+        <!-- OpenAI Option -->
+        <div class="form-group">
+          <label for="openaiKeyInput" class="form-label">
+            <i class="fa-solid fa-microchip text-accent"></i> OpenAI API Key (Optional)
+          </label>
+          <input 
+            type="password" 
+            id="openaiKeyInput" 
+            class="form-control" 
+            placeholder="sk-..." 
+          />
+          <small class="form-hint">
+            Alternative OpenAI key if you prefer GPT-4o-mini.
+          </small>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="clearKeysBtn" class="btn btn-outline">Reset to Built-in Engine</button>
+        <button id="saveKeysBtn" class="btn btn-primary">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Third-party CDN Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  
+  <!-- Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>
+

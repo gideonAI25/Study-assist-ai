@@ -1,0 +1,26 @@
+{
+  "name": "ai-study-assistant",
+  "version": "1.0.0",
+  "description": "An AI Study Assistant for students with custom difficulty levels and interactive follow-ups",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "ai",
+    "study-assistant",
+    "education",
+    "gemini",
+    "study-guide",
+    "tutoring"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
