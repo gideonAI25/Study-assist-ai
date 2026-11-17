@@ -32,11 +32,18 @@ app.get('/api/config', (req, res) => {
 // API: Generate Study Guide
 app.post('/api/study-guide', async (req, res) => {
   try {
-    const { topic, difficulty } = req.body;
+    const { topic, difficulty } = req.body || {};
     if (!topic || typeof topic !== 'string' || !topic.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Topic is required. Please provide a topic you want to study.'
+      });
+    }
+
+    if (topic.trim().length > 300) {
+      return res.status(400).json({
+        success: false,
+        error: 'Topic is too long. Please keep topics under 300 characters.'
       });
     }
 
@@ -46,7 +53,7 @@ app.post('/api/study-guide', async (req, res) => {
     };
 
     const result = await generateStudyGuide({
-      topic,
+      topic: topic.trim(),
       difficulty,
       customHeaders
     });
@@ -67,11 +74,18 @@ app.post('/api/study-guide', async (req, res) => {
 // API: Follow-up question
 app.post('/api/follow-up', async (req, res) => {
   try {
-    const { topic, difficulty, question, guideContext, history } = req.body;
+    const { topic, difficulty, question, guideContext, history } = req.body || {};
     if (!question || typeof question !== 'string' || !question.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Question is required for follow-up.'
+      });
+    }
+
+    if (question.trim().length > 1500) {
+      return res.status(400).json({
+        success: false,
+        error: 'Question is too long. Please keep questions under 1500 characters.'
       });
     }
 
@@ -81,10 +95,10 @@ app.post('/api/follow-up', async (req, res) => {
     };
 
     const result = await answerFollowUp({
-      topic: topic || 'General Study',
+      topic: (topic && typeof topic === 'string') ? topic.trim() : 'General Study',
       difficulty: difficulty || 'Intermediate',
-      question,
-      guideContext: guideContext || '',
+      question: question.trim(),
+      guideContext: (guideContext && typeof guideContext === 'string') ? guideContext : '',
       history: Array.isArray(history) ? history : [],
       customHeaders
     });

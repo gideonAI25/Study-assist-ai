@@ -8,10 +8,59 @@
 
 const https = require('https');
 
+/**
+ * Robust JSON POST helper using Node.js core https
+ * Prevents ECONNRESET issues commonly encountered with undici/fetch on Windows
+ */
+function postJson(urlString, payload, extraHeaders = {}) {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlString);
+      const bodyStr = JSON.stringify(payload);
+      const options = {
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: url.pathname + url.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(bodyStr),
+          ...extraHeaders
+        },
+        timeout: 30000 // 30s timeout
+      };
+
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, data: json });
+          } catch (e) {
+            resolve({ status: res.statusCode, ok: false, data: { error: { message: data || 'Invalid JSON response from API' } } });
+          }
+        });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timed out after 30 seconds'));
+      });
+
+      req.on('error', reject);
+      req.write(bodyStr);
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 // Helper to determine active provider and key
 function resolveApiConfig(customHeaders = {}) {
-  const geminiKey = customHeaders['x-gemini-key'] || process.env.GEMINI_API_KEY || '';
-  const openaiKey = customHeaders['x-openai-key'] || process.env.OPENAI_API_KEY || '';
+  const geminiKey = (customHeaders['x-gemini-key'] || process.env.GEMINI_API_KEY || '').trim();
+  const openaiKey = (customHeaders['x-openai-key'] || process.env.OPENAI_API_KEY || '').trim();
 
   if (geminiKey) {
     return { provider: 'gemini', key: geminiKey, model: process.env.GEMINI_MODEL || 'gemini-3.5-flash' };
@@ -26,6 +75,10 @@ function resolveApiConfig(customHeaders = {}) {
  * Call Google Gemini API
  */
 async function callGemini(apiKey, model, systemPrompt, userPrompt) {
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('Gemini API key is missing or empty.');
+  }
+
   // Use high-availability Gemini models with fast fallback
   const modelsToTry = [model, 'gemini-3.5-flash', 'gemini-3.5-flash-lite'].filter(Boolean);
   let lastError = null;
@@ -46,28 +99,41 @@ async function callGemini(apiKey, model, systemPrompt, userPrompt) {
         ],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 2048,
-          thinkingConfig: {
-            thinkingBudget: 0
-          }
+          maxOutputTokens: 2048
         }
       };
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      // Models without "lite" support thinkingBudget: 0 for instant responses
+      if (!m.includes('lite')) {
+        payload.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
 
-      const data = await res.json();
+      let res = await postJson(url, payload);
+      let data = res.data;
+
+      // If invalid argument due to thinkingConfig, retry without thinkingConfig
+      if (!res.ok && payload.generationConfig.thinkingConfig && data.error?.message?.includes('invalid argument')) {
+        delete payload.generationConfig.thinkingConfig;
+        res = await postJson(url, payload);
+        data = res.data;
+      }
+
       if (!res.ok) {
         throw new Error(data.error?.message || `Gemini API returned status ${res.status}`);
       }
 
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) {
-        return { text, modelUsed: m, provider: 'gemini' };
+      const candidate = data.candidates?.[0];
+      const parts = candidate?.content?.parts || [];
+      const text = parts.map(p => p.text || '').join('');
+
+      if (text && text.trim()) {
+        return { text: text.trim(), modelUsed: m, provider: 'gemini' };
       }
+
+      if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+        throw new Error(`Gemini response stopped with reason: ${candidate.finishReason}`);
+      }
+
       throw new Error('No candidate content returned by Gemini API');
     } catch (err) {
       lastError = err;
@@ -90,27 +156,29 @@ async function callOpenAI(apiKey, model, systemPrompt, messages) {
     ...messages
   ];
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model || 'gpt-4o-mini',
-      messages: chatMessages,
-      temperature: 0.7,
-      max_tokens: 2048
-    })
+  const payload = {
+    model: model || 'gpt-4o-mini',
+    messages: chatMessages,
+    temperature: 0.7,
+    max_tokens: 2048
+  };
+
+  const res = await postJson(url, payload, {
+    'Authorization': `Bearer ${apiKey.trim()}`
   });
 
-  const data = await res.json();
+  const data = res.data;
   if (!res.ok) {
     throw new Error(data.error?.message || `OpenAI API returned status ${res.status}`);
   }
 
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text.trim()) {
+    throw new Error('OpenAI returned an empty response.');
+  }
+
   return {
-    text: data.choices?.[0]?.message?.content || '',
+    text: text.trim(),
     modelUsed: model,
     provider: 'openai'
   };
@@ -139,7 +207,7 @@ function generateOfflineStudyGuide(topic, difficulty) {
 - **Essential Building Blocks**: The primary vocabulary and 3 main components you need to recognize.
 - **Common Misconceptions**: Things beginners often confuse when starting with ${titleTopic}.`;
     exampleSection = `#### 🍎 Everyday Analogy
-Think of **${titleTopic}** like an everyday everyday system (such as an organized kitchen or a traffic intersection):
+Think of **${titleTopic}** like an everyday system (such as an organized kitchen or a traffic intersection):
 - Every part has a designated role.
 - Input goes in, processes occur systematically, and expected output comes out.
 - Keeping it simple prevents overload and errors.

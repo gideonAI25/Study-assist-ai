@@ -128,6 +128,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------------------------------------------------------------
+  // Markdown & Syntax Setup
+  // -------------------------------------------------------------------------
+  if (typeof marked !== 'undefined' && marked.setOptions) {
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // LocalStorage Keys & Server Configuration
   // -------------------------------------------------------------------------
   function loadStoredKeys() {
@@ -144,8 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function saveStoredKeys(gemini, openai) {
-    state.apiKeys.gemini = gemini.trim();
-    state.apiKeys.openai = openai.trim();
+    state.apiKeys.gemini = (gemini || '').trim();
+    state.apiKeys.openai = (openai || '').trim();
     localStorage.setItem('studymind_gemini_key', state.apiKeys.gemini);
     localStorage.setItem('studymind_openai_key', state.apiKeys.openai);
     updateEngineBadge();
@@ -603,7 +613,18 @@ document.addEventListener('DOMContentLoaded', () => {
   async function handleCopyGuide() {
     if (!state.studyGuide) return;
     try {
-      await navigator.clipboard.writeText(state.studyGuide);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(state.studyGuide);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = state.studyGuide;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       showToast('Study guide copied to clipboard!', 'success');
       elements.copyGuideBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copied!</span>';
       setTimeout(() => {
@@ -616,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function handleDownloadGuide() {
     if (!state.studyGuide) return;
-    const sanitizedTopic = state.topic.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const sanitizedTopic = (state.topic || 'Study_Guide').replace(/[^a-zA-Z0-9_-]/g, '_');
     const filename = `${sanitizedTopic}_${state.difficulty}_StudyGuide.md`;
     const blob = new Blob([state.studyGuide], { type: 'text/markdown;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -637,7 +658,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = localStorage.getItem('studymind_history');
       if (data) {
-        state.savedGuides = JSON.parse(data);
+        const parsed = JSON.parse(data);
+        state.savedGuides = Array.isArray(parsed) ? parsed.filter(item => item && item.topic && item.difficulty) : [];
       }
     } catch (e) {
       state.savedGuides = [];
@@ -646,8 +668,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function saveGuideToHistory(entry) {
+    if (!entry || !entry.topic) return;
     // Avoid duplicate immediately
-    state.savedGuides = state.savedGuides.filter(item => item.topic.toLowerCase() !== entry.topic.toLowerCase() || item.difficulty !== entry.difficulty);
+    state.savedGuides = state.savedGuides.filter(item => 
+      item && item.topic && item.difficulty &&
+      !(item.topic.toLowerCase() === entry.topic.toLowerCase() && item.difficulty === entry.difficulty)
+    );
     state.savedGuides.unshift(entry);
     // Limit to 20 items
     if (state.savedGuides.length > 20) {
