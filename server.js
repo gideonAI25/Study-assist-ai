@@ -334,10 +334,22 @@ app.use((req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`===============================================`);
   console.log(`🎓 AI Study Assistant running on http://localhost:${PORT}`);
   console.log(`   Mode: ${process.env.GEMINI_API_KEY ? 'Google Gemini Live' : process.env.OPENAI_API_KEY ? 'OpenAI Live' : 'Smart Built-in Educational Engine'}`);
   console.log(`   Auth: Custom JWT Authentication Active`);
   console.log(`===============================================`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n⚠️  Port ${PORT} is already in use by another instance.`);
+    console.error(`   To free port ${PORT}, run this command in PowerShell:`);
+    console.error(`   Get-Process -Name node | Stop-Process -Force`);
+    console.error(`   Or change the port in your .env file: PORT=3001\n`);
+    process.exit(1);
+  } else {
+    console.error('Server error:', err);
+  }
 });
