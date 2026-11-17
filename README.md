@@ -25,7 +25,7 @@ An intelligent, lightweight study assistant built with **Node.js** and **Express
    - Preserves topic and study guide context across conversation turns.
    - Quick starter prompt suggestions (*"Another analogy"*, *"Common mistakes"*, *"Practice problem"*).
 5. **Multi-Engine AI Integration**:
-   - **Google Gemini API** (e.g. `gemini-2.5-flash`, `gemini-1.5-flash`).
+   - **Google Gemini API** (e.g. `gemini-3.5-flash`, `gemini-3.5-flash-lite`).
    - **OpenAI API** (`gpt-4o-mini`, `gpt-3.5-turbo`).
    - **Smart Built-in Educational Engine**: Delivers realistic, high-quality, structured guides and follow-up answers immediately out-of-the-box even without an API key or when offline!
 6. **Custom JWT Authentication & User Profiles**:
