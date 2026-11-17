@@ -26,6 +26,7 @@ pids/
 *.pid
 *.seed
 *.pid.lock
+data/
 
 # Directory for instrumented code coverage (e.g. Istanbul/nyc)
 coverage/

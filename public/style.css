@@ -1360,9 +1360,334 @@ body {
 }
 
 /* --------------------------------------------------------------------------
+   Auth & User Profile Styling
+   ========================================================================== */
+
+/* Auth Navbar Button */
+.auth-btn {
+  gap: 0.45rem;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.84rem;
+  border-radius: var(--radius-full);
+}
+
+/* User Profile Avatar in Navbar */
+.user-profile-wrapper {
+  position: relative;
+}
+
+.profile-avatar-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.profile-avatar-btn:hover {
+  background: var(--bg-muted);
+  border-color: var(--primary-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), #a855f7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+  flex-shrink: 0;
+}
+
+.user-avatar-circle.lg {
+  width: 44px;
+  height: 44px;
+  font-size: 1.1rem;
+}
+
+.user-display-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.caret-icon {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.profile-avatar-btn.active .caret-icon {
+  transform: rotate(180deg);
+}
+
+/* User Dropdown Menu */
+.user-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 250px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  padding: 0.65rem 0;
+  z-index: 250;
+  display: none;
+  animation: dropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.user-dropdown-menu.open {
+  display: block;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-user-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem 0.85rem;
+}
+
+.dropdown-user-info h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.dropdown-user-info p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.dropdown-divider {
+  border: none;
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: 0.4rem 0;
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.dropdown-item:hover {
+  background-color: var(--bg-elevated);
+  color: var(--primary);
+}
+
+.dropdown-item i {
+  font-size: 0.9rem;
+  width: 16px;
+  text-align: center;
+}
+
+.dropdown-item.logout-item:hover {
+  background-color: var(--danger-light);
+  color: var(--danger);
+}
+
+/* Greeting Badge in Hero */
+.greeting-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+  padding: 0.3rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.85rem;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Auth Modal Specifics */
+.auth-modal-card {
+  max-width: 440px;
+}
+
+.auth-modal-body {
+  padding: 1.5rem 1.75rem 2rem;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  background: var(--bg-elevated);
+  padding: 0.3rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+}
+
+.auth-tab {
+  background: transparent;
+  border: none;
+  padding: 0.6rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  transition: var(--transition);
+}
+
+.auth-tab.active {
+  background: var(--bg-surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.form-label-auth {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper .form-control {
+  padding-right: 2.75rem;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.4rem;
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+
+.toggle-password-btn:hover {
+  color: var(--text-primary);
+}
+
+.btn-auth {
+  margin-top: 0.5rem;
+  padding: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.auth-switch-text {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.auth-link-btn {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+.auth-link-btn:hover {
+  color: var(--primary-hover);
+}
+
+.auth-alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-alert.error {
+  background-color: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.auth-alert.success {
+  background-color: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+
+/* --------------------------------------------------------------------------
    Responsive Breakpoints
    -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
+  .user-display-name {
+    display: none;
+  }
+  
+  .profile-avatar-btn {
+    padding: 0.25rem;
+  }
+  
   .difficulty-grid {
     grid-template-columns: 1fr;
   }

@@ -28,11 +28,16 @@ An intelligent, lightweight study assistant built with **Node.js** and **Express
    - **Google Gemini API** (e.g. `gemini-2.5-flash`, `gemini-1.5-flash`).
    - **OpenAI API** (`gpt-4o-mini`, `gpt-3.5-turbo`).
    - **Smart Built-in Educational Engine**: Delivers realistic, high-quality, structured guides and follow-up answers immediately out-of-the-box even without an API key or when offline!
-6. **Student Utility Tools**:
+6. **Custom JWT Authentication & User Profiles**:
+   - 🔐 **Sign Up & Sign In**: Secure user authentication with `bcryptjs` password hashing and signed JSON Web Tokens (JWT).
+   - 👤 **Navbar Profile Avatar**: Displays user initials, gradient avatar, username, and account dropdown menu.
+   - ☁️ **Account-Synced Study History**: Saved study guides are automatically persisted and linked to the user's account.
+   - 🛡️ **Protected AI Endpoints**: Ensures study guides and follow-up Q&A are tied to authentic student accounts.
+7. **Student Utility Tools**:
    - 📋 **Copy to Clipboard**
    - 💾 **Download as Markdown (.md)**
    - 🖨️ **Print / Save as PDF**
-   - 🕒 **Saved Study Guides History** (stored in `localStorage`)
+   - 🕒 **Saved Study Guides History**
    - 🌓 **Dark / Light Mode Toggle** (with system preference auto-detection)
 
 ---
@@ -92,10 +97,20 @@ OPENAI_MODEL=gpt-4o-mini
 
 ## 📡 API Endpoints
 
+### Authentication
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/study-guide` | Generates a concise study guide for `{ topic, difficulty }` |
+| `POST` | `/api/auth/signup` | Register a new account (`username`, `email`, `password`) |
+| `POST` | `/api/auth/login` | Sign in with `email` and `password`, returns JWT |
+| `GET` | `/api/auth/me` | Fetch currently authenticated user profile |
+
+### AI Study Assistant (Requires JWT `Bearer` token)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/study-guide` | Generates a concise study guide & saves to user account |
 | `POST` | `/api/follow-up` | Answers a student's follow-up question in context |
+| `GET` | `/api/user/guides` | Retrieve user's saved study guides |
+| `DELETE`| `/api/user/guides/:id` | Delete a specific saved study guide |
 | `GET` | `/api/config` | Returns active engine configuration and status |
 | `GET` | `/api/health` | Service health check |
 
@@ -105,14 +120,17 @@ OPENAI_MODEL=gpt-4o-mini
 
 ```
 ├── server.js              # Lightweight Express application server
+├── auth.js                # JWT token signing, verification & auth middleware
+├── storage.js             # Local JSON file database (users & guides)
 ├── ai-service.js          # Unified AI service (Gemini, OpenAI & Offline Engine)
 ├── package.json           # Dependencies and scripts
 ├── .env.example           # Environment template
-├── .env                   # Environment variables
+├── .env                   # Environment variables (local secrets)
+├── data/                  # Local user accounts & saved guides (git-ignored)
 ├── public/                # Frontend assets
-│   ├── index.html         # Semantic HTML5 layout
-│   ├── style.css          # Modern light/dark styling
-│   └── app.js             # Client application logic
+│   ├── index.html         # Semantic HTML5 layout with Auth modal & Avatar
+│   ├── style.css          # Modern light/dark styling & auth components
+│   └── app.js             # Client application logic & JWT auth state
 └── README.md              # Project documentation
 ```
 

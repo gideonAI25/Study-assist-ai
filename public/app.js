@@ -1,5 +1,11 @@
 /**
  * StudyMind AI - Frontend Application Logic
+ * Featuring:
+ * - Custom JWT Authentication (Sign In & Sign Up modal)
+ * - User Profile Avatar & Dropdown in Navbar
+ * - Server-synced Study Guide History
+ * - Interactive Study Guides & Follow-up Q&A
+ * - Dark & Light mode toggle
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -7,6 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // State
   // -------------------------------------------------------------------------
   const state = {
+    // Auth State
+    authToken: localStorage.getItem('studymind_token') || '',
+    currentUser: null,
+
+    // Study Guide State
     topic: '',
     difficulty: 'Beginner',
     studyGuide: '',
@@ -14,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     model: '',
     followUpHistory: [], // array of { role: 'user' | 'assistant', content: string }
     savedGuides: [],
+
+    // App Preferences
     theme: 'light',
     apiKeys: {
       gemini: '',
@@ -21,6 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     serverConfig: null
   };
+
+  // Try to parse cached user
+  try {
+    const cachedUser = localStorage.getItem('studymind_user');
+    if (cachedUser) {
+      state.currentUser = JSON.parse(cachedUser);
+    }
+  } catch (e) {
+    state.currentUser = null;
+  }
 
   // -------------------------------------------------------------------------
   // DOM Elements
@@ -33,6 +56,44 @@ document.addEventListener('DOMContentLoaded', () => {
     engineStatusText: document.getElementById('engineStatusText'),
     historyToggleBtn: document.getElementById('historyToggleBtn'),
     historyCountBadge: document.getElementById('historyCountBadge'),
+
+    // Auth Navigation Elements
+    authOpenBtn: document.getElementById('authOpenBtn'),
+    userProfileWrapper: document.getElementById('userProfileWrapper'),
+    userProfileBtn: document.getElementById('userProfileBtn'),
+    userAvatar: document.getElementById('userAvatar'),
+    userDisplayName: document.getElementById('userDisplayName'),
+    userDropdownMenu: document.getElementById('userDropdownMenu'),
+    dropdownAvatar: document.getElementById('dropdownAvatar'),
+    dropdownUsername: document.getElementById('dropdownUsername'),
+    dropdownEmail: document.getElementById('dropdownEmail'),
+    dropdownHistoryBtn: document.getElementById('dropdownHistoryBtn'),
+    dropdownSettingsBtn: document.getElementById('dropdownSettingsBtn'),
+    logoutBtn: document.getElementById('logoutBtn'),
+
+    // Hero Greeting
+    userGreetingBadge: document.getElementById('userGreetingBadge'),
+    greetingUsername: document.getElementById('greetingUsername'),
+    heroHeading: document.getElementById('heroHeading'),
+
+    // Auth Modal Elements
+    authModal: document.getElementById('authModal'),
+    authModalTitle: document.getElementById('authModalTitle'),
+    closeAuthBtn: document.getElementById('closeAuthBtn'),
+    tabSignInBtn: document.getElementById('tabSignInBtn'),
+    tabSignUpBtn: document.getElementById('tabSignUpBtn'),
+    authAlertBox: document.getElementById('authAlertBox'),
+    signInForm: document.getElementById('signInForm'),
+    signUpForm: document.getElementById('signUpForm'),
+    loginEmailInput: document.getElementById('loginEmailInput'),
+    loginPasswordInput: document.getElementById('loginPasswordInput'),
+    submitSignInBtn: document.getElementById('submitSignInBtn'),
+    signupUsernameInput: document.getElementById('signupUsernameInput'),
+    signupEmailInput: document.getElementById('signupEmailInput'),
+    signupPasswordInput: document.getElementById('signupPasswordInput'),
+    submitSignUpBtn: document.getElementById('submitSignUpBtn'),
+    switchToSignUpBtn: document.getElementById('switchToSignUpBtn'),
+    switchToSignInBtn: document.getElementById('switchToSignInBtn'),
 
     // Generator Form
     studyForm: document.getElementById('studyForm'),
@@ -91,8 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialization
   // -------------------------------------------------------------------------
   initTheme();
+  initMarkdown();
   loadStoredKeys();
-  loadStoredHistory();
+  initAuth();
   fetchServerConfig();
   setupEventListeners();
 
@@ -127,14 +189,13 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(state.theme === 'dark' ? 'light' : 'dark');
   }
 
-  // -------------------------------------------------------------------------
-  // Markdown & Syntax Setup
-  // -------------------------------------------------------------------------
-  if (typeof marked !== 'undefined' && marked.setOptions) {
-    marked.setOptions({
-      breaks: true,
-      gfm: true
-    });
+  function initMarkdown() {
+    if (typeof marked !== 'undefined' && marked.setOptions) {
+      marked.setOptions({
+        breaks: true,
+        gfm: true
+      });
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -189,6 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getApiHeaders() {
     const headers = { 'Content-Type': 'application/json' };
+    if (state.authToken) {
+      headers['Authorization'] = `Bearer ${state.authToken}`;
+    }
     if (state.apiKeys.gemini) {
       headers['x-gemini-key'] = state.apiKeys.gemini;
     }
@@ -227,11 +291,333 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------------------------------------------------------------
+  // JWT Authentication & User Profile Management
+  // -------------------------------------------------------------------------
+  function initAuth() {
+    if (state.authToken) {
+      // Verify token with server
+      verifyAuthToken();
+      // Fetch user's saved guides from server
+      fetchUserGuides();
+    } else {
+      loadStoredHistory();
+    }
+    updateAuthUI();
+  }
+
+  async function verifyAuthToken() {
+    if (!state.authToken) return;
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: getApiHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          state.currentUser = data.user;
+          localStorage.setItem('studymind_user', JSON.stringify(data.user));
+          updateAuthUI();
+        }
+      } else if (res.status === 401) {
+        // Expired or invalid token
+        handleLogout(false);
+      }
+    } catch (err) {
+      console.warn('Could not verify auth token with server:', err);
+    }
+  }
+
+  function updateAuthUI() {
+    const isLoggedIn = Boolean(state.authToken && state.currentUser);
+
+    if (isLoggedIn) {
+      const user = state.currentUser;
+      const initials = getInitials(user.username || user.email);
+
+      // Hide Sign In button, Show User Profile
+      elements.authOpenBtn.classList.add('hidden');
+      elements.userProfileWrapper.classList.remove('hidden');
+
+      // Update Avatar
+      elements.userAvatar.textContent = initials;
+      elements.dropdownAvatar.textContent = initials;
+      if (user.avatarColor) {
+        elements.userAvatar.style.background = user.avatarColor;
+        elements.dropdownAvatar.style.background = user.avatarColor;
+      }
+
+      // Update Names & Email
+      elements.userDisplayName.textContent = user.username || 'Student';
+      elements.dropdownUsername.textContent = user.username || 'Student';
+      elements.dropdownEmail.textContent = user.email || '';
+
+      // Update Greeting
+      elements.greetingUsername.textContent = user.username || 'Student';
+      elements.userGreetingBadge.classList.remove('hidden');
+      elements.heroHeading.textContent = `Ready to study, ${user.username}?`;
+    } else {
+      // Logged out
+      elements.authOpenBtn.classList.remove('hidden');
+      elements.userProfileWrapper.classList.add('hidden');
+      elements.userDropdownMenu.classList.remove('open');
+      elements.userProfileBtn.classList.remove('active');
+      elements.userGreetingBadge.classList.add('hidden');
+      elements.heroHeading.textContent = 'What do you want to master today?';
+    }
+  }
+
+  function getInitials(name) {
+    if (!name) return 'U';
+    const clean = name.trim().replace(/[^a-zA-Z0-9 ]/g, '');
+    const parts = clean.split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return clean.substring(0, 2).toUpperCase() || 'U';
+  }
+
+  function openAuthModal(tab = 'signin', alertMsg = '') {
+    switchAuthTab(tab);
+    if (alertMsg) {
+      showAuthAlert(alertMsg, 'error');
+    } else {
+      clearAuthAlert();
+    }
+    elements.authModal.classList.add('open');
+    if (tab === 'signin') {
+      setTimeout(() => elements.loginEmailInput.focus(), 150);
+    } else {
+      setTimeout(() => elements.signupUsernameInput.focus(), 150);
+    }
+  }
+
+  function closeAuthModal() {
+    elements.authModal.classList.remove('open');
+    clearAuthAlert();
+    elements.signInForm.reset();
+    elements.signUpForm.reset();
+  }
+
+  function switchAuthTab(tab) {
+    clearAuthAlert();
+    if (tab === 'signup') {
+      elements.tabSignInBtn.classList.remove('active');
+      elements.tabSignInBtn.setAttribute('aria-selected', 'false');
+      elements.tabSignUpBtn.classList.add('active');
+      elements.tabSignUpBtn.setAttribute('aria-selected', 'true');
+      elements.signInForm.classList.add('hidden');
+      elements.signUpForm.classList.remove('hidden');
+      elements.authModalTitle.textContent = 'Create your StudyMind Account';
+      elements.signupUsernameInput.focus();
+    } else {
+      elements.tabSignUpBtn.classList.remove('active');
+      elements.tabSignUpBtn.setAttribute('aria-selected', 'false');
+      elements.tabSignInBtn.classList.add('active');
+      elements.tabSignInBtn.setAttribute('aria-selected', 'true');
+      elements.signUpForm.classList.add('hidden');
+      elements.signInForm.classList.remove('hidden');
+      elements.authModalTitle.textContent = 'Sign In to StudyMind AI';
+      elements.loginEmailInput.focus();
+    }
+  }
+
+  function showAuthAlert(message, type = 'error') {
+    elements.authAlertBox.className = `auth-alert ${type}`;
+    elements.authAlertBox.innerHTML = `
+      <i class="fa-solid ${type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'}"></i>
+      <span>${escapeHtml(message)}</span>
+    `;
+    elements.authAlertBox.classList.remove('hidden');
+  }
+
+  function clearAuthAlert() {
+    elements.authAlertBox.classList.add('hidden');
+    elements.authAlertBox.innerHTML = '';
+  }
+
+  async function handleSignInSubmit() {
+    const email = elements.loginEmailInput.value.trim();
+    const password = elements.loginPasswordInput.value;
+
+    if (!email || !password) {
+      showAuthAlert('Please enter both email and password.');
+      return;
+    }
+
+    elements.submitSignInBtn.disabled = true;
+    elements.submitSignInBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in...';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to sign in.');
+      }
+
+      // Save auth token & user
+      state.authToken = data.token;
+      state.currentUser = data.user;
+      localStorage.setItem('studymind_token', data.token);
+      localStorage.setItem('studymind_user', JSON.stringify(data.user));
+
+      updateAuthUI();
+      closeAuthModal();
+      showToast(`Welcome back, ${data.user.username}!`, 'success');
+
+      // Sync user's study guides from server
+      fetchUserGuides();
+    } catch (err) {
+      showAuthAlert(err.message || 'Invalid email or password.');
+    } finally {
+      elements.submitSignInBtn.disabled = false;
+      elements.submitSignInBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Sign In</span>';
+    }
+  }
+
+  async function handleSignUpSubmit() {
+    const username = elements.signupUsernameInput.value.trim();
+    const email = elements.signupEmailInput.value.trim();
+    const password = elements.signupPasswordInput.value;
+
+    if (!username || username.length < 2) {
+      showAuthAlert('Username must be at least 2 characters long.');
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      showAuthAlert('Please provide a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      showAuthAlert('Password must be at least 6 characters long.');
+      return;
+    }
+
+    elements.submitSignUpBtn.disabled = true;
+    elements.submitSignUpBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating account...';
+
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create account.');
+      }
+
+      // Save auth token & user
+      state.authToken = data.token;
+      state.currentUser = data.user;
+      localStorage.setItem('studymind_token', data.token);
+      localStorage.setItem('studymind_user', JSON.stringify(data.user));
+
+      updateAuthUI();
+      closeAuthModal();
+      showToast(`Account created! Welcome, ${data.user.username}!`, 'success');
+
+      // Sync guides
+      fetchUserGuides();
+    } catch (err) {
+      showAuthAlert(err.message || 'Could not create account.');
+    } finally {
+      elements.submitSignUpBtn.disabled = false;
+      elements.submitSignUpBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> <span>Create Account</span>';
+    }
+  }
+
+  function handleLogout(showNotification = true) {
+    state.authToken = '';
+    state.currentUser = null;
+    localStorage.removeItem('studymind_token');
+    localStorage.removeItem('studymind_user');
+
+    updateAuthUI();
+    loadStoredHistory(); // load local fallback
+
+    if (showNotification) {
+      showToast('You have been signed out.', 'info');
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Event Listeners Setup
   // -------------------------------------------------------------------------
   function setupEventListeners() {
     // Theme toggle
     elements.themeToggleBtn.addEventListener('click', toggleTheme);
+
+    // Auth Open & Close
+    elements.authOpenBtn.addEventListener('click', () => openAuthModal('signin'));
+    elements.closeAuthBtn.addEventListener('click', closeAuthModal);
+    elements.tabSignInBtn.addEventListener('click', () => switchAuthTab('signin'));
+    elements.tabSignUpBtn.addEventListener('click', () => switchAuthTab('signup'));
+    elements.switchToSignUpBtn.addEventListener('click', () => switchAuthTab('signup'));
+    elements.switchToSignInBtn.addEventListener('click', () => switchAuthTab('signin'));
+
+    // Auth Forms
+    elements.signInForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleSignInSubmit();
+    });
+
+    elements.signUpForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleSignUpSubmit();
+    });
+
+    // Password visibility toggles
+    document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (input) {
+          const isPassword = input.type === 'password';
+          input.type = isPassword ? 'text' : 'password';
+          btn.innerHTML = isPassword 
+            ? '<i class="fa-regular fa-eye-slash"></i>' 
+            : '<i class="fa-regular fa-eye"></i>';
+        }
+      });
+    });
+
+    // User Profile Dropdown
+    elements.userProfileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = elements.userDropdownMenu.classList.contains('open');
+      elements.userDropdownMenu.classList.toggle('open', !isOpen);
+      elements.userProfileBtn.classList.toggle('active', !isOpen);
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (!elements.userProfileWrapper.contains(e.target)) {
+        elements.userDropdownMenu.classList.remove('open');
+        elements.userProfileBtn.classList.remove('active');
+      }
+    });
+
+    // Dropdown Action Items
+    elements.dropdownHistoryBtn.addEventListener('click', () => {
+      elements.userDropdownMenu.classList.remove('open');
+      openHistoryDrawer();
+    });
+
+    elements.dropdownSettingsBtn.addEventListener('click', () => {
+      elements.userDropdownMenu.classList.remove('open');
+      openSettingsModal();
+    });
+
+    elements.logoutBtn.addEventListener('click', () => {
+      elements.userDropdownMenu.classList.remove('open');
+      handleLogout(true);
+    });
 
     // Topic input clear button
     elements.topicInput.addEventListener('input', () => {
@@ -341,6 +727,9 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.settingsModal.addEventListener('click', (e) => {
       if (e.target === elements.settingsModal) closeSettingsModal();
     });
+    elements.authModal.addEventListener('click', (e) => {
+      if (e.target === elements.authModal) closeAuthModal();
+    });
     elements.saveKeysBtn.addEventListener('click', () => {
       saveStoredKeys(elements.geminiKeyInput.value, elements.openaiKeyInput.value);
       closeSettingsModal();
@@ -354,7 +743,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeSettingsModal();
+        closeAuthModal();
         closeHistoryDrawer();
+        elements.userDropdownMenu.classList.remove('open');
       }
     });
   }
@@ -373,9 +764,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------------------------------------------------------------
-  // Generate Study Guide Handler
+  // Generate Study Guide Handler (Protected by Auth)
   // -------------------------------------------------------------------------
   async function handleGenerateStudyGuide() {
+    // Require authentication
+    if (!state.authToken) {
+      openAuthModal('signin', 'Please sign in or create an account to generate study guides.');
+      return;
+    }
+
     const topic = elements.topicInput.value.trim();
     if (!topic) {
       showToast('Please enter a topic to study.', 'error');
@@ -401,6 +798,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await response.json();
 
+      if (response.status === 401) {
+        handleLogout(false);
+        openAuthModal('signin', 'Your session has expired. Please sign in again.');
+        throw new Error('Authentication required.');
+      }
+
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to generate study guide.');
       }
@@ -413,16 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Render Guide
       renderStudyGuide(data);
 
-      // Save to local history
-      saveGuideToHistory({
-        id: Date.now().toString(),
-        topic: state.topic,
-        difficulty: state.difficulty,
-        studyGuide: state.studyGuide,
-        provider: data.provider,
-        model: data.model,
-        date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      });
+      // Refresh saved guides from server
+      fetchUserGuides();
 
       showToast('Study guide generated successfully!', 'success');
     } catch (error) {
@@ -456,7 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Topic & Difficulty Badges
     elements.guideTopicTitle.textContent = data.topic;
     elements.guideDiffBadge.textContent = data.difficulty;
-    elements.guideDiffBadge.className = `badge-difficulty ${data.difficulty.toLowerCase()}`;
+    elements.guideDiffBadge.className = `badge-difficulty ${(data.difficulty || 'beginner').toLowerCase()}`;
 
     // Provider Badge
     let providerLabel = 'AI Engine';
@@ -494,9 +889,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------------------------------------------------------------
-  // Follow-up Question Handler
+  // Follow-up Question Handler (Protected by Auth)
   // -------------------------------------------------------------------------
   async function handleFollowUpSubmit() {
+    if (!state.authToken) {
+      openAuthModal('signin', 'Please sign in to ask follow-up questions.');
+      return;
+    }
+
     const question = elements.followUpInput.value.trim();
     if (!question) return;
 
@@ -531,6 +931,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await response.json();
 
+      if (response.status === 401) {
+        handleLogout(false);
+        openAuthModal('signin', 'Your session has expired. Please sign in again.');
+        throw new Error('Authentication required.');
+      }
+
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to get answer from AI tutor.');
       }
@@ -562,9 +968,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const avatar = document.createElement('div');
     avatar.className = 'bubble-avatar';
-    avatar.innerHTML = role === 'user' 
-      ? '<i class="fa-solid fa-user"></i>' 
-      : '<i class="fa-solid fa-graduation-cap"></i>';
+    if (role === 'user') {
+      const initials = state.currentUser ? getInitials(state.currentUser.username) : 'U';
+      avatar.textContent = initials;
+      if (state.currentUser?.avatarColor) {
+        avatar.style.background = state.currentUser.avatarColor;
+      }
+    } else {
+      avatar.innerHTML = '<i class="fa-solid fa-graduation-cap"></i>';
+    }
 
     const content = document.createElement('div');
     content.className = 'bubble-content markdown-body';
@@ -572,7 +984,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (role === 'user') {
       content.textContent = text;
     } else {
-      const parsed = marked.parse(text);
+      const parsed = marked.parse(text || 'No response generated.');
       content.innerHTML = DOMPurify.sanitize(parsed);
       content.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
     }
@@ -652,8 +1064,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // -------------------------------------------------------------------------
-  // History Management (LocalStorage)
+  // History & Server Guides Management
   // -------------------------------------------------------------------------
+  async function fetchUserGuides() {
+    if (!state.authToken) return;
+    try {
+      const res = await fetch('/api/user/guides', {
+        headers: getApiHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.guides)) {
+          state.savedGuides = data.guides.map(g => ({
+            id: g.id,
+            topic: g.topic,
+            difficulty: g.difficulty,
+            studyGuide: g.studyGuide,
+            provider: g.provider,
+            model: g.model,
+            date: new Date(g.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          }));
+          renderHistoryDrawer();
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch guides from server, falling back to local:', err);
+      loadStoredHistory();
+    }
+  }
+
   function loadStoredHistory() {
     try {
       const data = localStorage.getItem('studymind_history');
@@ -663,26 +1102,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (e) {
       state.savedGuides = [];
-    }
-    renderHistoryDrawer();
-  }
-
-  function saveGuideToHistory(entry) {
-    if (!entry || !entry.topic) return;
-    // Avoid duplicate immediately
-    state.savedGuides = state.savedGuides.filter(item => 
-      item && item.topic && item.difficulty &&
-      !(item.topic.toLowerCase() === entry.topic.toLowerCase() && item.difficulty === entry.difficulty)
-    );
-    state.savedGuides.unshift(entry);
-    // Limit to 20 items
-    if (state.savedGuides.length > 20) {
-      state.savedGuides = state.savedGuides.slice(0, 20);
-    }
-    try {
-      localStorage.setItem('studymind_history', JSON.stringify(state.savedGuides));
-    } catch (e) {
-      console.warn('Could not save to localStorage', e);
     }
     renderHistoryDrawer();
   }
@@ -707,10 +1126,10 @@ document.addEventListener('DOMContentLoaded', () => {
       div.className = 'history-item';
       div.innerHTML = `
         <div class="history-item-top">
-          <span class="badge-difficulty ${item.difficulty.toLowerCase()}" style="font-size:0.65rem; padding: 0.15rem 0.45rem;">
+          <span class="badge-difficulty ${(item.difficulty || 'beginner').toLowerCase()}" style="font-size:0.65rem; padding: 0.15rem 0.45rem;">
             ${item.difficulty}
           </span>
-          <button class="history-item-delete" title="Delete from history" data-index="${index}">
+          <button class="history-item-delete" title="Delete from history" data-id="${item.id}" data-index="${index}">
             <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
@@ -727,9 +1146,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Delete action
       const deleteBtn = div.querySelector('.history-item-delete');
-      deleteBtn.addEventListener('click', (e) => {
+      deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        deleteHistoryItem(index);
+        await deleteHistoryItem(item.id, index);
       });
 
       list.appendChild(div);
@@ -759,20 +1178,44 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`Loaded "${item.topic}" study guide.`, 'info');
   }
 
-  function deleteHistoryItem(index) {
+  async function deleteHistoryItem(guideId, index) {
+    // Delete from server if logged in
+    if (state.authToken && guideId) {
+      try {
+        await fetch(`/api/user/guides/${guideId}`, {
+          method: 'DELETE',
+          headers: getApiHeaders()
+        });
+      } catch (err) {
+        console.warn('Could not delete from server:', err);
+      }
+    }
+
     state.savedGuides.splice(index, 1);
-    localStorage.setItem('studymind_history', JSON.stringify(state.savedGuides));
     renderHistoryDrawer();
     showToast('Removed from history.', 'info');
   }
 
-  function handleClearAllHistory() {
-    if (confirm('Are you sure you want to clear all saved study guides?')) {
-      state.savedGuides = [];
-      localStorage.removeItem('studymind_history');
-      renderHistoryDrawer();
-      showToast('All study guides cleared.', 'info');
+  async function handleClearAllHistory() {
+    if (!confirm('Are you sure you want to clear all your saved study guides?')) {
+      return;
     }
+
+    if (state.authToken) {
+      try {
+        await fetch('/api/user/guides', {
+          method: 'DELETE',
+          headers: getApiHeaders()
+        });
+      } catch (err) {
+        console.warn('Could not clear server guides:', err);
+      }
+    }
+
+    state.savedGuides = [];
+    localStorage.removeItem('studymind_history');
+    renderHistoryDrawer();
+    showToast('All study guides cleared.', 'info');
   }
 
   function openHistoryDrawer() {
@@ -828,4 +1271,3 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 });
-

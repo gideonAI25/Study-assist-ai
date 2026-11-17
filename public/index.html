@@ -52,6 +52,45 @@
         <button id="themeToggleBtn" class="icon-btn" title="Toggle Theme" aria-label="Toggle Dark/Light Mode">
           <i class="fa-solid fa-moon"></i>
         </button>
+
+        <!-- Auth: Sign In Button (when logged out) -->
+        <button id="authOpenBtn" class="btn btn-primary btn-sm auth-btn">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i>
+          <span>Sign In</span>
+        </button>
+
+        <!-- Auth: User Profile Avatar & Dropdown (when logged in) -->
+        <div id="userProfileWrapper" class="user-profile-wrapper hidden">
+          <button id="userProfileBtn" class="profile-avatar-btn" title="Account Menu" aria-haspopup="true" aria-expanded="false">
+            <div id="userAvatar" class="user-avatar-circle">U</div>
+            <span id="userDisplayName" class="user-display-name">Student</span>
+            <i class="fa-solid fa-chevron-down caret-icon"></i>
+          </button>
+          
+          <div id="userDropdownMenu" class="user-dropdown-menu">
+            <div class="dropdown-user-header">
+              <div id="dropdownAvatar" class="user-avatar-circle lg">U</div>
+              <div class="dropdown-user-info">
+                <h4 id="dropdownUsername">Student</h4>
+                <p id="dropdownEmail">student@example.com</p>
+              </div>
+            </div>
+            <hr class="dropdown-divider" />
+            <button type="button" id="dropdownHistoryBtn" class="dropdown-item">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              <span>My Study Guides</span>
+            </button>
+            <button type="button" id="dropdownSettingsBtn" class="dropdown-item">
+              <i class="fa-solid fa-sliders"></i>
+              <span>AI Engine Settings</span>
+            </button>
+            <hr class="dropdown-divider" />
+            <button type="button" id="logoutBtn" class="dropdown-item logout-item">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -62,7 +101,11 @@
     <!-- Hero / Welcome Banner -->
     <section class="hero-section">
       <div class="hero-content">
-        <h2>What do you want to master today?</h2>
+        <div id="userGreetingBadge" class="greeting-badge hidden">
+          <i class="fa-solid fa-sparkles"></i>
+          <span>Welcome back, <strong id="greetingUsername">Student</strong>!</span>
+        </div>
+        <h2 id="heroHeading">What do you want to master today?</h2>
         <p>Pick any subject, select your difficulty level, and receive a tailor-made study guide with interactive follow-up Q&amp;A.</p>
       </div>
     </section>
@@ -294,6 +337,146 @@
     </div>
   </aside>
   <div id="drawerOverlay" class="drawer-overlay"></div>
+
+  <!-- Auth Modal (Sign In / Sign Up) -->
+  <div id="authModal" class="modal">
+    <div class="modal-card auth-modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-graduation-cap text-primary"></i>
+          <h3 id="authModalTitle">Welcome to StudyMind AI</h3>
+        </div>
+        <button id="closeAuthBtn" class="icon-btn" title="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body auth-modal-body">
+        <!-- Tab Switcher -->
+        <div class="auth-tabs" role="tablist">
+          <button type="button" id="tabSignInBtn" class="auth-tab active" role="tab" aria-selected="true">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In
+          </button>
+          <button type="button" id="tabSignUpBtn" class="auth-tab" role="tab" aria-selected="false">
+            <i class="fa-solid fa-user-plus"></i> Create Account
+          </button>
+        </div>
+
+        <!-- Alert Notification Box -->
+        <div id="authAlertBox" class="auth-alert hidden"></div>
+
+        <!-- SIGN IN FORM -->
+        <form id="signInForm" class="auth-form" onsubmit="return false;">
+          <div class="form-group">
+            <label for="loginEmailInput" class="form-label-auth">
+              <i class="fa-regular fa-envelope"></i> Email Address
+            </label>
+            <input 
+              type="email" 
+              id="loginEmailInput" 
+              class="form-control" 
+              placeholder="student@example.com" 
+              required 
+              autocomplete="email"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="loginPasswordInput" class="form-label-auth">
+              <i class="fa-solid fa-lock"></i> Password
+            </label>
+            <div class="password-wrapper">
+              <input 
+                type="password" 
+                id="loginPasswordInput" 
+                class="form-control" 
+                placeholder="Enter your password" 
+                required 
+                autocomplete="current-password"
+              />
+              <button type="button" class="toggle-password-btn" data-target="loginPasswordInput" title="Show/Hide password">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="submitSignInBtn" class="btn btn-primary btn-block btn-auth">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+            <span>Sign In</span>
+          </button>
+
+          <p class="auth-switch-text">
+            Don't have an account yet? 
+            <button type="button" id="switchToSignUpBtn" class="auth-link-btn">Create one now</button>
+          </p>
+        </form>
+
+        <!-- SIGN UP FORM -->
+        <form id="signUpForm" class="auth-form hidden" onsubmit="return false;">
+          <div class="form-group">
+            <label for="signupUsernameInput" class="form-label-auth">
+              <i class="fa-regular fa-user"></i> Username
+            </label>
+            <input 
+              type="text" 
+              id="signupUsernameInput" 
+              class="form-control" 
+              placeholder="e.g. Gideon" 
+              required 
+              minlength="2"
+              autocomplete="username"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="signupEmailInput" class="form-label-auth">
+              <i class="fa-regular fa-envelope"></i> Email Address
+            </label>
+            <input 
+              type="email" 
+              id="signupEmailInput" 
+              class="form-control" 
+              placeholder="student@example.com" 
+              required 
+              autocomplete="email"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="signupPasswordInput" class="form-label-auth">
+              <i class="fa-solid fa-lock"></i> Password
+            </label>
+            <div class="password-wrapper">
+              <input 
+                type="password" 
+                id="signupPasswordInput" 
+                class="form-control" 
+                placeholder="Choose a strong password (min 6 chars)" 
+                required 
+                minlength="6"
+                autocomplete="new-password"
+              />
+              <button type="button" class="toggle-password-btn" data-target="signupPasswordInput" title="Show/Hide password">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+            <small class="form-hint">At least 6 characters</small>
+          </div>
+
+          <button type="submit" id="submitSignUpBtn" class="btn btn-primary btn-block btn-auth">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Create Account</span>
+          </button>
+
+          <p class="auth-switch-text">
+            Already have an account? 
+            <button type="button" id="switchToSignInBtn" class="auth-link-btn">Sign in here</button>
+          </p>
+        </form>
+
+      </div>
+    </div>
+  </div>
 
   <!-- Settings / API Key Modal -->
   <div id="settingsModal" class="modal">
